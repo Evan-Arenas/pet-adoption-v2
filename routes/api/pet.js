@@ -82,38 +82,37 @@ router.put('/new', async (req, res, next) => {
     next(err);
   }
 });
-router.put('/:petId', (req, res, next) => {
-  const petId = req.params.petId;
-  const { species, name, age, gender } = req.body;
+router.put('/:petId', async (req, res, next) => {
+  try {
+    const petId = newId(req.params.petId);
+    const update = req.body;
+    debug(`update pet ${petId},`, update);
 
-  const pet = petsArray.find((x) => x._id == petId);
-  if (!pet) {
-    res.status(404).json({ error: 'Pet not found.' });
-  } else {
-    if (species != undefined) {
-      pet.species = species;
-    }
-    if (name != undefined) {
-      pet.name = name;
-    }
-    if (age != undefined) {
-      pet.age = parseInt(age);
-    }
-    if (gender != undefined) {
-      pet.gender = gender;
+    const pet = await dbModule.findPetById(petId);
+    if (!pet) {
+      res.status(404).json({ error: `Pet ${petId} not found.` });
+    } else {
+      await dbModule.updatePetById(petId, update);
+      res.json({ message: `Pet ${petId} updated.` });
     }
     pet.lastUpdated = new Date();
-    res.json(pet);
+  } catch (err) {
+    next(err);
   }
 });
-router.delete('/:petId', (req, res, next) => {
-  const petId = req.params.petId;
-  const index = petsArray.findIndex((x) => x._id == petId);
-  if (index < 0) {
-    res.status(404).json({ error: 'Pet not found.' });
-  } else {
-    petsArray.splice(index, 1);
-    res.json({ message: 'Pet deleted.' });
+router.delete('/:petId', async (req, res, next) => {
+  try {
+    const petId = newId(req.params.petId);
+    debug(`delete pet${petId}`);
+
+    const pet = await dbModule.deletePetById(petId);
+    if (!pet) {
+      res.status(404).json({ error: `Pet ${petId} not found.` });
+    } else {
+      res.json({ message: `pet ${petId} deleted` });
+    }
+  } catch (err) {
+    next(err);
   }
 });
 
