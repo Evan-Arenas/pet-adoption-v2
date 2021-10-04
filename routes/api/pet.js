@@ -4,6 +4,8 @@ const express = require('express');
 const { nanoid } = require('nanoid');
 const dbModule = require('../../database');
 const { newId } = require('../../database');
+const Joi = require('joi');
+const { valid } = require('joi');
 
 const petsArray = [
   { _id: '1', name: 'Fido', createdDate: new Date() },
@@ -57,27 +59,27 @@ router.get('/:petId', async (req, res, next) => {
 });
 router.put('/new', async (req, res, next) => {
   try {
-    const pet = {
-      _id: newId(),
-      species: req.body.species,
-      name: req.body.name,
-      age: parseInt(req.body.age),
-      gender: req.body.gender,
-      createdDate: new Date(),
-    };
+    const schema = Joi.object({
+      species: Joi.string()
+        .trim()
+        .min(1)
+        .pattern(/^[^0-9]+$/, 'not numbers')
+        .required(),
+      name: Joi.string().trim().min(1).required(),
+      age: Joi.number().integer().min(0).max(1000).required(),
+      gender: Joi.string().trim().length(1).required(),
+    });
 
-    if (!pet.species) {
-      res.status(400).json({ error: 'Species required.' });
-    } else if (!pet.name) {
-      res.status(400).json({ error: 'Name required.' });
-    } else if (!pet.age) {
-      res.status(400).json({ error: 'Age required.' });
-    } else if (!pet.gender) {
-      res.status(400).json({ error: 'Gender required.' });
-    } else {
-      await dbModule.insertOnePet(pet);
-      res.json({ message: 'Pet inserted.' });
+    const validateResult = schema.validate(req.body, { abortEarly: false });
+    if (validateResult.error) {
+      return res.status(400).json({ error: validateResult.error });
     }
+    const pet = validateResult.value;
+    pet._id = newId();
+    debug('insert pet', pet);
+
+    await dbModule.insertOnePet(pet);
+    res.json({ message: 'Pet inserted.' });
   } catch (err) {
     next(err);
   }
@@ -85,7 +87,22 @@ router.put('/new', async (req, res, next) => {
 router.put('/:petId', async (req, res, next) => {
   try {
     const petId = newId(req.params.petId);
-    const update = req.body;
+
+    const schema = Joi.object({
+      species: Joi.string()
+        .trim()
+        .min(1)
+        .pattern(/^[^0-9]+$/, 'not numbers'),
+      name: Joi.string().trim().min(1),
+      age: Joi.number().integer().min(0).max(1000),
+      gender: Joi.string().trim().length(1),
+    });
+    const validateResult = schema.validate(req.body, { abortEarly: false });
+    if (validateResult.error) {
+      res.status(400).json({ error: validateResult.error });
+    }
+
+    const update = validateResult.value;
     debug(`update pet ${petId},`, update);
 
     const pet = await dbModule.findPetById(petId);
