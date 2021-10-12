@@ -7,7 +7,7 @@
 //   }
 // };
 
-const { ObjectId } = require('mongodb');
+const { newId } = require('../database.js');
 
 const validId = (paramName) => {
   return (req, res, next) => {
