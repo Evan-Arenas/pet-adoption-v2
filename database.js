@@ -6,6 +6,7 @@ const newId = (str) => ObjectId(str);
 
 let _db = null;
 
+/** Miscellaneous functions */
 /**
  * Connect to the database
  * @returns {Promise<db>}
@@ -20,32 +21,27 @@ async function connect() {
   }
   return _db;
 }
-
 async function ping() {
   const db = await connect();
   await db.command({ ping: 1 });
   debug('Ping.');
 }
 
+/** Pet functions */
 async function findAllPets() {
   const db = await connect();
   const pets = await db.collection('pets').find({}).toArray();
   return pets;
 }
-
 async function findPetById(petId) {
   const db = await connect();
-  const pet = await db
-    .collection('pets')
-    .findOne({ _id: { $eq: /* new ObjectId */ petId } });
+  const pet = await db.collection('pets').findOne({ _id: { $eq: /* new ObjectId */ petId } });
   return pet;
 }
-
 async function insertOnePet(pet) {
   const db = await connect();
   await db.collection('pets').insertOne({ ...pet, createdDate: new Date() });
 }
-
 async function updatePetById(petId, update) {
   const db = await connect();
   db.collection('pets').updateOne(
@@ -58,21 +54,47 @@ async function updatePetById(petId, update) {
     }
   );
 }
-
 async function deletePetById(petId) {
   const db = await connect();
   await db.collection('pets').deleteOne({ _id: { $eq: petId } });
 }
 
+/** User functions */
+async function insertOneUser(user) {
+  const db = await connect();
+  return await db.collection('users').insertOne(user);
+}
+async function updateOneUser(userId, fields) {
+  const db = await connect();
+  return await db.collection('users').updateOne({ _id: { $eq: userId } }, { $set: { ...fields } });
+}
+async function findUserById(userId) {
+  const db = await connect();
+  return await db.collection('users').findOne({ _id: { $eq: userId } });
+}
+async function findUserByEmail(email) {
+  const db = await connect();
+  return await db.collection('users').findOne({ email: { $eq: email } });
+}
+
 ping();
 
 module.exports = {
+  /** Miscellaneous functions */
   connect,
   ping,
   newId,
+
+  /** Pet functions */
   findAllPets,
   findPetById,
   insertOnePet,
   updatePetById,
   deletePetById,
+
+  /** User functions */
+  insertOneUser,
+  updateOneUser,
+  findUserById,
+  findUserByEmail,
 };
