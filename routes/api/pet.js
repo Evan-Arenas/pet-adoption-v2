@@ -9,12 +9,6 @@ const { valid } = require('joi');
 const validId = require('../../middleware/validId');
 const validBody = require('../../middleware/validBody');
 
-const petsArray = [
-  { _id: '1', name: 'Fido', createdDate: new Date() },
-  { _id: '2', name: 'Watson', createdDate: new Date() },
-  { _id: '3', name: 'Loki', createdDate: new Date() },
-];
-
 // Global Variables
 const newPetSchema = Joi.object({
   species: Joi.string()
@@ -154,44 +148,98 @@ router.get('/:petId', validId('petId'), async (req, res, next) => {
 });
 router.put('/new', validBody(newPetSchema), async (req, res, next) => {
   try {
-    const pet = req.body;
-    pet._id = newId();
-    debug('insert pet', pet);
+    if (!req.auth) {
+      res.status(401).json({ error: `Invalid token/You must be logged in` });
+    } else {
+      const currentDate = new Date();
+      const pet = req.body;
+      pet._id = newId();
+      pet.createdBy = { _id: req.auth._id, role: req.auth.role };
+      debug('insert pet', pet);
 
-    await dbModule.insertOnePet(pet);
-    res.json({ message: 'Pet inserted.' });
+      const edit = {
+        timestamp: currentDate,
+        operation: 'insert',
+        collection: 'pets',
+        target: { petId: pet._id },
+        change: { ...pet, createdDate: currentDate },
+      };
+      await dbModule.saveEdit(edit);
+
+      const result = await dbModule.insertOnePet(pet, currentDate);
+      debug(result);
+      res.status(200).json({ message: 'Pet inserted.', petId: pet._id });
+    }
   } catch (err) {
     next(err);
   }
 });
 router.put('/:petId', validId('petId'), validBody(updatePetSchema), async (req, res, next) => {
   try {
-    const petId = req.petId;
-    const update = req.body;
-    debug(`update pet ${petId},`, update);
-
-    const pet = await dbModule.findPetById(petId);
-    if (!pet) {
-      res.status(404).json({ error: `Pet ${petId} not found.` });
+    if (!req.auth) {
+      res.status(401).json({ error: 'Invalid token/You must be logged in' });
     } else {
-      await dbModule.updatePetById(petId, update);
-      res.json({ message: `Pet ${petId} updated.` });
+      const currentDate = new Date();
+      const petId = req.petId;
+      const update = req.body;
+      debug(`update pet ${petId}`);
+      debug(update);
+
+      if (Object.keys(update).length > 0) {
+        update.lastUpdatedOn = currentDate;
+        update.lastUpdatedBy = {
+          _id: req.auth._id,
+          role: req.auth.role,
+        };
+      }
+
+      const edit = {
+        timestamp: currentDate,
+        operation: 'update',
+        collection: 'pets',
+        target: { petId },
+        change: update,
+        auth: req.auth,
+      };
+      await dbModule.saveEdit(edit);
+
+      const pet = await dbModule.findPetById(petId);
+      if (!pet) {
+        res.status(404).json({ error: `Pet ${petId} not found.` });
+      } else {
+        await dbModule.updatePetById(petId, update);
+        res.json({ message: 'Pet updated.', petId });
+      }
+      pet.lastUpdated = new Date();
     }
-    pet.lastUpdated = new Date();
   } catch (err) {
     next(err);
   }
 });
 router.delete('/:petId', validId('petId'), async (req, res, next) => {
   try {
-    const petId = req.petId;
-    debug(`delete pet${petId}`);
-
-    const pet = await dbModule.deletePetById(petId);
-    if (!pet) {
-      res.status(404).json({ error: `Pet ${petId} not found.` });
+    if (!req.auth) {
+      res.status(401).json({ error: 'Invalid token/You must be logged in' });
     } else {
-      res.json({ message: `pet ${petId} deleted` });
+      const currentDate = new Date();
+      const petId = req.petId;
+      debug(`delete pet${petId}`);
+
+      const edit = {
+        timestamp: currentDate,
+        operation: 'delete',
+        collection: 'pets',
+        target: { petId },
+        auth: req.auth,
+      };
+      await dbModule.saveEdit(edit);
+
+      const pet = await dbModule.deletePetById(petId);
+      if (!pet) {
+        res.status(404).json({ error: `Pet ${petId} not found.` });
+      } else {
+        res.json({ message: `pet ${petId} deleted` });
+      }
     }
   } catch (err) {
     next(err);

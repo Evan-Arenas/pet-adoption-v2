@@ -38,9 +38,9 @@ async function findPetById(petId) {
   const pet = await db.collection('pets').findOne({ _id: { $eq: /* new ObjectId */ petId } });
   return pet;
 }
-async function insertOnePet(pet) {
+async function insertOnePet(pet, currentDate) {
   const db = await connect();
-  await db.collection('pets').insertOne({ ...pet, createdDate: new Date() });
+  return await db.collection('pets').insertOne({ ...pet, createdDate: currentDate });
 }
 async function updatePetById(petId, update) {
   const db = await connect();
@@ -49,7 +49,7 @@ async function updatePetById(petId, update) {
     {
       $set: {
         ...update,
-        lastUpdated: new Date(),
+        /* lastUpdated: new Date(), */
       },
     }
   );
@@ -60,6 +60,10 @@ async function deletePetById(petId) {
 }
 
 /** User functions */
+async function findAllUsers() {
+  const db = await connect();
+  return await db.collection('users').find({}).toArray();
+}
 async function insertOneUser(user) {
   const db = await connect();
   return await db.collection('users').insertOne(user);
@@ -75,6 +79,12 @@ async function findUserById(userId) {
 async function findUserByEmail(email) {
   const db = await connect();
   return await db.collection('users').findOne({ email: { $eq: email } });
+}
+
+/** Edit functions */
+async function saveEdit(edit) {
+  const db = await connect();
+  return await db.collection('edits').insertOne(edit);
 }
 
 ping();
@@ -93,8 +103,12 @@ module.exports = {
   deletePetById,
 
   /** User functions */
+  findAllUsers,
   insertOneUser,
   updateOneUser,
   findUserById,
   findUserByEmail,
+
+  /** Edit functions */
+  saveEdit,
 };

@@ -9,11 +9,11 @@ const auth = () => {
       debug(authCookie);
       if (authCookie) {
         const authPayload = jwt.verify(authCookie, config.get('auth.secret'));
-        debug(config.get('auth.secret'));
+        // debug(config.get('auth.secret'));
         req.auth = authPayload;
       }
     } catch (error) {
-      debug(error);
+      debug('error:', error);
     }
     next();
   };
